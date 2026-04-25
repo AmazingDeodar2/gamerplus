@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>评委相性测试</title>
+<style>
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #222733;
+  --muted: #667085;
+  --line: #d9deea;
+  --accent: #4f6bed;
+  --accent-soft: #edf1ff;
+  --danger: #c43d3d;
+  --shadow: 0 10px 30px rgba(31, 44, 71, 0.06);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 28px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+.container { max-width: 1180px; margin: 0 auto; }
+.header {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+h1 { margin: 0 0 8px; font-size: 30px; }
+.tip { margin: 0; color: var(--muted); line-height: 1.7; }
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.role-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+.role-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.role-title { margin: 0; font-size: 19px; line-height: 1.35; }
+.role-id { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.type-badge {
+  flex: 0 0 auto;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #cfd8ff;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.info-block {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 10px;
+}
+.label {
+  display: inline-block;
+  font-weight: 800;
+  color: #374151;
+  margin-bottom: 5px;
+}
+.text {
+  white-space: pre-wrap;
+  line-height: 1.65;
+  color: #30384c;
+  font-size: 14px;
+}
+.empty { color: var(--muted); }
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.score-row span { font-weight: 800; }
+input.score {
+  width: 116px;
+  padding: 10px 12px;
+  border: 1px solid #b8c0d4;
+  border-radius: 12px;
+  font-size: 16px;
+  text-align: center;
+}
+input.score:focus {
+  outline: 2px solid rgba(79, 107, 237, .22);
+  border-color: var(--accent);
+}
+.actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 14px 0;
+  background: linear-gradient(180deg, rgba(246,247,251,0), var(--bg) 25%);
+  align-items: center;
+}
+button {
+  border: 0;
+  background: var(--accent);
+  color: white;
+  border-radius: 14px;
+  padding: 12px 22px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+button.secondary { background: #e8ebf4; color: #30384c; }
+.result-card {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 22px 26px;
+  box-shadow: var(--shadow);
+  margin-top: 16px;
+}
+.result-title { font-size: 22px; margin: 0 0 10px; }
+.result-title b { color: var(--accent); }
+.percent { font-size: 36px; font-weight: 900; margin: 10px 0 16px; }
+.error { color: var(--danger); font-weight: 800; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 520px; }
+th, td { border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: center; }
+th { background: var(--accent-soft); }
+.footer-note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+@media (max-width: 600px) {
+  body { padding: 14px; }
+  .role-grid { grid-template-columns: 1fr; }
+  .header { padding: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <section class="header">
+    <h1>测试你最像哪位评委</h1>
+    <p class="tip">请根据你对角色的评价输入 0–10 分，最多保留两位小数。提交后会将你的评分向量与7位评委的真实评分向量比较，距离越近，相似度越高。</p>
+  </section>
+
+  <main id="roleGrid" class="role-grid"></main>
+
+  <div class="actions">
+    <button onclick="calculateResult()">计算结果</button>
+    <button class="secondary" onclick="clearScores()">清空评分</button>
+    <span id="message" class="error"></span>
+  </div>
+
+  <section id="resultCard" class="result-card">
+    <h2 class="result-title" id="bestText"></h2>
+    <div class="percent" id="bestPercent"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>排名</th>
+            <th>评委</th>
+            <th>相似度</th>
+            <th>距离</th>
+          </tr>
+        </thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <p class="footer-note">相似度采用绝对距离换算：100% 表示与你的20个评分完全一致，0% 表示达到理论最大差距。</p>
+  </section>
+</div>
+
+<script>
+const DATA = {
+  "roles": [
+    {
+      "id": 569,
+      "name": "翠绿魔珠",
+      "type": "爪牙",
+      "ability": "每累计有3次信息因镇民能力产生，其中的第3次会改为产生错误信息作为替代。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 58,
+      "name": "怪盗",
+      "type": "恶魔",
+      "ability": "每个夜晚，查看魔典并选择一名玩家获得其角色能力，他中毒，上个因你能力中毒的玩家死亡并恢复健康，然后你失去他的能力。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 697,
+      "name": "叛道者",
+      "type": "爪牙",
+      "ability": "与你临近的玩家可能会被当做邪恶的爪牙或恶魔。他们都被处决时，邪恶阵营获胜。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 983,
+      "name": "星际方言",
+      "type": "奇遇角色",
+      "ability": "善良玩家的信息被汇入词簇。他们收到的信息由代表对应词簇的符号代替（但他们不知道哪个符号对应哪个词簇）。游戏开始时，说书人公布词簇分配。",
+      "operation": "游戏开始时，说书人决定本场游戏加入两个词簇，分配如下：\n是，善良\n否，邪恶\n符号（*，#）\n村夫查验1号玩家得知了“#”，女裁缝选择了1号、2号玩家后得知了#。由于白天1号玩家投票，卖花女孩得知*。他们经过信息对比，认为#对应的是（否，邪恶），遂将一号玩家处决。\n\n第二局游戏，说书人决定加入三个词簇，分配如下：\n是，善良，0\n否，左，1\n右，邪恶，2\n符号（*，#，○）\n\n第10086局游戏，玩家认为太简单，说书人加入了六个词簇\n是，0，顺时针\n否，1，镇民\n邪恶，2，外来\n善良，3，爪牙\n左，4，恶魔\n右，5，逆时针\n符号（↑，↓，x，·，#，○，→）\n是的你没有看错有七个符号，可以定义一个空符号，不对应任何词簇。\n玩家盘傻了",
+      "note": ""
+    },
+    {
+      "id": 211,
+      "name": "以太",
+      "type": "镇民",
+      "ability": "每个夜晚，首个使用其自身能力选择了你的玩家不受除你以外的能力影响直到下个黄昏。",
+      "operation": "首个夜晚哲学家选择侍臣，侍臣醉酒，下个夜晚侍臣选择了以太。侍臣清醒并且以太醉酒。\n占卜师选择以太与作为“干扰项”的圣徒，占卜师得知了“否”。下个夜晚，熬药巫婆创造了薛定谔的猫，善良的占卜师选择自己和以太，占卜师得知了“否”。\n不受除你以外的能力影响不包括无神论者和异端分子以及其他类似能力。",
+      "note": ""
+    },
+    {
+      "id": 57,
+      "name": "帮凶",
+      "type": "爪牙",
+      "ability": "每局游戏限一次：在今晚邪恶玩家行动时你一同被唤醒，当他选择或影响其他玩家时你可以为其额外添加一个目标。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 76,
+      "name": "资本家",
+      "type": "恶魔",
+      "ability": "在你的首个夜晚，你要选择一名初始爪牙玩家：他加入善良阵营但他不会得知此事。每个夜晚*，你要选择一名玩家：他死亡。【+1爪牙】",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 827,
+      "name": "人皮纸",
+      "type": "恶魔",
+      "ability": "每个夜晚*，选择一个玩家，获得其技能并被视为该角色直到下一个黄昏；被你选择的玩家可能会死亡",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 578,
+      "name": "马戏团",
+      "type": "恶魔",
+      "ability": "每个夜晚*，你要选择一名存活玩家：如果他是善良的，他死亡。[恶魔“是镇民”，所有镇民“是恶魔”，+1外来者]",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 123,
+      "name": "代理人",
+      "type": "镇民",
+      "ability": "每局游戏仅一次，每个夜晚*，你可以选择：直到下个白天结束，你与恶魔交换角色和阵营。",
+      "operation": "代理人的夜间行动顺序在恶魔前，且不会因为交换角色刷新能力。\n1号玩家代理人选择交换。2号玩家小恶魔现在变成了善良的代理人，1号玩家代理人现在变成了邪恶的小恶魔。1号玩家选择击杀2号玩家，白天，2号玩家死亡，3号玩家被处决。白天结束后，1号玩家和2号玩家再次交换角色和阵营，游戏结束，善良阵营获胜，1号玩家。\n1号玩家代理人选择交换。2号玩家小恶魔现在变成了善良的代理人，1号玩家代理人现在变成了邪恶的小恶魔。1号玩家选择击杀2号玩家，白天，2号玩家死亡，1号玩家被处决，游戏结束，善良阵营获胜，2号玩家获胜。",
+      "note": ""
+    },
+    {
+      "id": 45,
+      "name": "寄生者",
+      "type": "镇民",
+      "ability": "每个夜晚，你要选择一名存活玩家。当你们其中一人死亡时，另一人会一同死亡。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 1005,
+      "name": "捣蛋鬼",
+      "type": "爪牙",
+      "ability": "每个夜晚*，你要选择一名除你以外的存活玩家：说书人会尝试唤醒他或者使他沉睡。如果他因你的能力被唤醒，他死亡。",
+      "operation": "角色简介：\n捣蛋鬼会让晚上不好好睡觉的玩家“睡个好觉”。\n·除首个夜晚，捣蛋鬼每个夜晚都需要选择一名玩家并选择尝试唤醒他或使她沉睡。捣蛋鬼必须选择存活的玩家，且不能选择自己。\n·捣蛋鬼尝试唤醒的玩家会在捣蛋鬼入睡后立即被唤醒。如果该玩家因此被唤醒，让该玩家重新入睡，随后在他的角色标记旁放置“死亡”标记。\n·如果当晚本来就需要唤醒捣蛋鬼尝试唤醒的玩家，且捣蛋鬼尝试唤醒该玩家时该玩家拒绝被唤醒，轮到该玩家的行动顺序时，仍然需要唤醒该玩家。\n·被捣蛋鬼唤醒并死亡的玩家不视为进行了夜间行动，但会被记为成功被唤醒。\n运作方式：每个夜晚*，唤醒捣蛋鬼，让捣蛋鬼指向除自己以外任意一名存活的玩家并选择尝试唤醒他或跳过他的夜间行动。让捣蛋鬼重新入睡。根据捣蛋鬼的选择，立即尝试唤醒被捣蛋鬼选择的玩家，或在轮到该玩家行动时跳过他的夜间行动。如果该玩家因捣蛋鬼的能力被唤醒，用手势示意该玩家重新入睡，随后在他的角色标记旁放置“死亡”标记。\n提示标记：\n死亡，沉睡，尝试唤醒全局机制：沉睡：\n·跳过沉睡玩家的夜间行动。善良玩家在被唤醒时可以主动使自己沉睡。\n·如果那些必须做出选择的角色沉睡并因此影响该角色能力交互（比如食人魔、管家等），改为由说书人为其选择并在下个白天告知他选择了哪些玩家。\n·如果在你需要向一名玩家在夜晚展示其阵营转换、角色改变、疯狂等时他沉睡，改为在下个白天向其展示。",
+      "note": "背景故事：“Trick or treat！”"
+    },
+    {
+      "id": 195,
+      "name": "蛮族部落首领",
+      "type": "旅行者",
+      "ability": "你拥有三个剧本列表中角色的能力。在你的第三个夜晚，你需要选择一个能力：你失去这个能力。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 833,
+      "name": "群众演员",
+      "type": "镇民",
+      "ability": "首个夜晚，你会得知所有未出场且不是恶魔伪装的善良阵营角色。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 583,
+      "name": "纪事官",
+      "type": "镇民",
+      "ability": "每当有一种角色类型的存活玩家首次不大于其初始的半数，你就会在当晚得知一名与之角色类型相同的存活玩家（或得知没有）。",
+      "operation": "",
+      "note": "一晚内只要满足条件即可得知多名玩家，得知顺序为满足条件的顺序。"
+    },
+    {
+      "id": 97,
+      "name": "煤气灯人",
+      "type": "爪牙",
+      "ability": "每局限一次，你可以选择一名存活玩家。说书人私下问玩家：“你确定你没记错吗？”如果该玩家对自己信息\"疯狂“，则该名玩家失去其技能。",
+      "operation": "",
+      "note": ""
+    },
+    {
+      "id": 495,
+      "name": "铁幕",
+      "type": "镇民",
+      "ability": "每局游戏限一次，在夜晚*时，你可以指定大于等于存活玩家半数的存活玩家，当晚恶魔的能力只能选择你指定的玩家（或者放弃选择）。",
+      "operation": "铁幕能指定恶魔的攻击范围，以此来保护你认为的善良玩家，铁幕要尽可能选择你认为是邪恶阵营的玩家或者抗推位上的玩家，可以将你自己放进范围内，以此来保护其他能产生信息的玩家，因为你的能力只能使用这一次。恶魔玩家会得知自己的攻击范围受到铁幕的影响，当恶魔选择范围外的玩家时，说书人必须要求他重新选择",
+      "note": "能力类型：暴露角色、免死、限次能力。\n\n如果恶魔的能力是“可能有一名玩家死亡”，那么死亡的玩家也只会在铁幕指定的玩家中产生。如果恶魔可以选择多名玩家，他的能力首先杀死了铁幕，他也不能再次选择铁幕指定范围外的玩家。铁幕的能力只能影响恶魔，其他爪牙和善良角色造成的死亡，铁幕无法避免。"
+    },
+    {
+      "id": 164,
+      "name": "缝合工人",
+      "type": "爪牙",
+      "ability": "你以为你是个善良角色，其实你不是。你可能会被善良玩家当作邪恶的恶魔。【+0~1缝合工人】",
+      "operation": "缝合工人不会参与邪恶方的互认，不拥有他以为的角色的能力。缝合工人可能会被当作爪牙，也可能会被当作邪恶的恶魔。如果缝合工人在游戏中途被创造，则不会改变玩家原来的认知，但他原来的能力将无法正常生效。若缝合工人初始在场，则不要将其加入盲抽袋并用一名镇民作为代替，在确认完所有人身份后，再决定谁是缝合工人。",
+      "note": "PS：缝合工人的主要用途是作为”血肉工厂“的衍生角色出现，若要作为初始爪牙登场，其强度可能需要一定调整，【+0~1缝合工人】是我目前作出的调整，但平衡性有待商榷。"
+    },
+    {
+      "id": 379,
+      "name": "催眠师",
+      "type": "爪牙",
+      "ability": "至多三名善良玩家初始会收到错误的角色",
+      "operation": "4号玩家是卖花女孩，由于催眠师的能力，他得知自己是城镇公告员，但他并没有城镇公告员的能力，他依旧会在夜间得知是或否，但实际上他得知的是恶魔是否投票。\n\n5号玩家是畸形秀演员，由于催眠师的能力，他得知自己是一张理发师，于是当他在白天疯狂证明自己是理发师时，说书人将他处决了，因为此时他实际拥有的是畸形秀演员的能力。\n\n6号玩家是博学者，由于催眠师的能力，他得知自己是一张女巫，但当他在白天拜访说书人时，说书人依然会告知他两条信息，因为他只是收到错误的角色，实际上依然拥有博学者的能力。\n\n",
+      "note": ""
+    },
+    {
+      "id": 492,
+      "name": "半人狼",
+      "type": "外来者",
+      "ability": "黎明时你加入善良阵营；黄昏时你加入邪恶阵营；死亡时你加入对立阵营。",
+      "operation": "醉酒/中毒时，半人狼的阵营固定为其当前所处的阵营（除非受其他角色影响），直到其清醒。",
+      "note": ""
+    }
+  ],
+  "judges": {
+    "蓝铃兰": [
+      6.0,
+      5.25,
+      4.75,
+      2.75,
+      4.0,
+      6.75,
+      5.75,
+      4.75,
+      6.5,
+      8.0,
+      5.25,
+      2.5,
+      4.75,
+      7.25,
+      4.75,
+      5.5,
+      3.5,
+      4.75,
+      6.75,
+      2.25
+    ],
+    "刘中奇": [
+      6.0,
+      6.0,
+      5.0,
+      1.0,
+      4.0,
+      4.0,
+      5.0,
+      3.0,
+      4.0,
+      3.0,
+      6.0,
+      4.0,
+      5.0,
+      3.0,
+      2.0,
+      6.0,
+      3.0,
+      5.0,
+      0.0,
+      4.0
+    ],
+    "苏通染": [
+      5.0,
+      3.0,
+      6.0,
+      8.0,
+      6.0,
+      7.0,
+      9.0,
+      3.0,
+      4.0,
+      7.0,
+      7.0,
+      5.0,
+      4.0,
+      6.0,
+      4.0,
+      4.0,
+      6.0,
+      6.0,
+      5.0,
+      7.0
+    ],
+    "泽度": [
+      7.0,
+      4.0,
+      3.0,
+      7.0,
+      4.0,
+      4.0,
+      4.0,
+      8.0,
+      5.0,
+      5.0,
+      5.0,
+      3.0,
+      7.0,
+      7.0,
+      6.0,
+      4.0,
+      4.0,
+      5.0,
+      6.0,
+      5.5
+    ],
+    "仙乐阅": [
+      5.0,
+      5.0,
+      4.0,
+      7.0,
+      6.0,
+      6.0,
+      6.5,
+      6.0,
+      4.0,
+      0.0,
+      4.0,
+      3.0,
+      5.0,
+      7.0,
+      4.0,
+      6.0,
+      6.0,
+      5.0,
+      7.0,
+      7.0
+    ],
+    "痴愚": [
+      5.0,
+      5.0,
+      4.0,
+      6.5,
+      5.0,
+      9.0,
+      3.0,
+      5.0,
+      5.5,
+      5.0,
+      6.0,
+      4.0,
+      5.0,
+      4.5,
+      5.0,
+      4.0,
+      6.5,
+      6.5,
+      6.8,
+      6.0
+    ],
+    "际尘": [
+      4.0,
+      2.0,
+      3.0,
+      5.0,
+      3.0,
+      5.0,
+      2.0,
+      4.0,
+      6.0,
+      5.0,
+      6.0,
+      4.0,
+      5.0,
+      4.0,
+      6.0,
+      3.0,
+      5.0,
+      4.0,
+      7.0,
+      5.0
+    ]
+  }
+};
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function fieldBlock(label, content) {
+  const safe = content ? escapeHtml(content) : '<span class="empty">无</span>';
+  return `
+    <div class="info-block">
+      <div class="label">${label}</div>
+      <div class="text">${safe}</div>
+    </div>`;
+}
+
+function renderRoles() {
+  const grid = document.getElementById("roleGrid");
+  grid.innerHTML = DATA.roles.map((role, index) => `
+    <article class="role-card">
+      <div class="role-head">
+        <div>
+          <h2 class="role-title">${escapeHtml(role.name)}</h2>
+          <div class="role-id">编号：${role.id}</div>
+        </div>
+        <span class="type-badge">${escapeHtml(role.type || "未分类")}</span>
+      </div>
+      ${fieldBlock("角色能力", role.ability)}
+      ${fieldBlock("运作", role.operation)}
+      ${fieldBlock("备注", role.note)}
+      <div class="score-row">
+        <span>你的评分</span>
+        <input class="score" id="score-${index}" type="number" min="0" max="10" step="0.01" inputmode="decimal" placeholder="0-10" />
+      </div>
+    </article>
+  `).join("");
+}
+
+function parseScores() {
+  const scores = [];
+  const pattern = /^(10(\.0{1,2})?|[0-9](\.\d{1,2})?)$/;
+  for (let i = 0; i < DATA.roles.length; i++) {
+    const input = document.getElementById(`score-${i}`);
+    const raw = input.value.trim();
+    if (!pattern.test(raw)) {
+      input.focus();
+      throw new Error(`第 ${i + 1} 个角色评分格式不正确，请输入0-10之间、最多两位小数的数字。`);
+    }
+    const value = Number(raw);
+    if (Number.isNaN(value) || value < 0 || value > 10) {
+      input.focus();
+      throw new Error(`第 ${i + 1} 个角色评分超出范围，请输入0-10。`);
+    }
+    scores.push(value);
+  }
+  return scores;
+}
+
+function euclideanDistance(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    sum += Math.pow(a[i] - b[i], 2);
+  }
+  return Math.sqrt(sum);
+}
+
+function similarityFromDistance(distance, count) {
+  const maxDistance = Math.sqrt(count * 100);
+  return Math.max(0, (1 - distance / maxDistance) * 100);
+}
+
+function calculateResult() {
+  const message = document.getElementById("message");
+  message.textContent = "";
+  try {
+    const userScores = parseScores();
+    const rankings = Object.entries(DATA.judges).map(([judge, scores]) => {
+      const distance = euclideanDistance(userScores, scores);
+      const similarity = similarityFromDistance(distance, userScores.length);
+      return { judge, distance, similarity };
+    }).sort((a, b) => b.similarity - a.similarity);
+
+    const best = rankings[0];
+    document.getElementById("resultCard").style.display = "block";
+    document.getElementById("bestText").innerHTML = `你最像：<b>${escapeHtml(best.judge)}</b>`;
+    document.getElementById("bestPercent").textContent = `${best.similarity.toFixed(2)}%`;
+
+    document.getElementById("rankBody").innerHTML = rankings.map((item, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(item.judge)}</td>
+        <td><b>${item.similarity.toFixed(2)}%</b></td>
+        <td>${item.distance.toFixed(4)}</td>
+      </tr>
+    `).join("");
+
+    document.getElementById("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    document.getElementById("resultCard").style.display = "none";
+    message.textContent = err.message;
+  }
+}
+
+function clearScores() {
+  DATA.roles.forEach((_, i) => {
+    document.getElementById(`score-${i}`).value = "";
+  });
+  document.getElementById("message").textContent = "";
+  document.getElementById("resultCard").style.display = "none";
+}
+
+renderRoles();
+</script>
+</body>
+</html>
